@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Request a Ride - BodaConnect</title>
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body class="request-page">
+  <header class="header">
+    <span class="icon" aria-label="motorcycle">🛵</span>
+    <span class="logo">BodaConnect</span>
+  </header>
+  <main class="container">
+    <h1>Request a Ride</h1>
+    <form id="request-form" autocomplete="off" style="margin-bottom:24px;">
+      <label for="pickup">Pickup Location</label>
+      <input type="text" id="pickup" name="pickup" required placeholder="e.g. Kariakoo Market">
+      <label for="destination">Destination</label>
+      <input type="text" id="destination" name="destination" required placeholder="e.g. Mwenge Bus Terminal">
+      <button class="btn btn-primary" id="submit-btn" type="submit">Request Ride</button>
+    </form>
+    <div id="request-status"></div>
+    <div style="margin-top:24px;">
+      <a href="index.html" style="color:var(--accent); text-decoration:none;">&larr; Back to Home</a>
+    </div>
+  </main>
+  <script src="js/app.js"></script>
+</body>
+</html>

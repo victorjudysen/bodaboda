@@ -1,84 +1,137 @@
-/*
-  BodaConnect Stylesheet
-  Minimal, functional, African-local inspired UI
-*/
+/* BodaConnect - Realistic, Clean, Product UI */
+:root {
+  --accent: #f57c00;
+  --accent-dark: #e65100;
+  --bg: #fff;
+  --text: #222;
+  --muted: #888;
+  --border: #e0e0e0;
+  --radius: 4px;
+  --space-1: 8px;
+  --space-2: 16px;
+  --space-3: 24px;
+  --max-width: 600px;
+}
 
 body {
   margin: 0;
   padding: 0;
   font-family: Arial, Helvetica, sans-serif;
-  background: #fafafa;
-  color: #222;
+  background: var(--bg);
+  color: var(--text);
+}
+
+.header {
+  width: 100%;
+  background: var(--bg);
+  border-bottom: 1px solid var(--border);
+  padding: var(--space-2) 0 var(--space-1) 0;
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  box-sizing: border-box;
+}
+.header .logo {
+  font-size: 1.5rem;
+  font-weight: bold;
+  color: var(--accent);
+  margin-right: var(--space-1);
+}
+.header .icon {
+  font-size: 1.5rem;
+  margin-right: var(--space-1);
 }
 
 .container {
-  max-width: 420px;
-  margin: 32px auto;
-  padding: 24px;
-  background: #fff;
-  border: 1px solid #e0e0e0;
-  border-radius: 4px;
+  max-width: var(--max-width);
+  margin: 0 auto;
+  padding: var(--space-3) var(--space-2);
   box-sizing: border-box;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.03);
 }
 
 h1, h2, h3 {
   font-weight: 600;
-  margin-bottom: 16px;
-  color: #222;
+  margin-bottom: var(--space-2);
+  color: var(--text);
 }
 
-button, .btn {
-  display: inline-block;
-  padding: 10px 20px;
-  background: #f57c00;
-  color: #fff;
-  border: none;
-  border-radius: 2px;
-  font-size: 1rem;
-  cursor: pointer;
-  margin: 8px 0;
-  transition: background 0.2s;
-}
-button:hover, .btn:hover {
-  background: #e65100;
+h1 {
+  font-size: 2rem;
+  margin-top: var(--space-2);
 }
 
-input, select, textarea {
-  width: 100%;
-  padding: 10px;
-  margin: 8px 0 16px 0;
-  border: 1px solid #bdbdbd;
-  border-radius: 2px;
+h2 {
+  font-size: 1.25rem;
+  margin-top: var(--space-2);
+}
+
+p, label {
   font-size: 1rem;
-  box-sizing: border-box;
-  background: #fafafa;
+  color: var(--text);
 }
 
 label {
-  font-size: 1rem;
-  margin-bottom: 4px;
+  margin-bottom: var(--space-1);
   display: block;
-  color: #333;
 }
 
-@media (max-width: 600px) {
-  .container {
-    margin: 0;
-    border-radius: 0;
-    min-height: 100vh;
-    box-shadow: none;
-    padding: 16px;
-  }
-  h1 {
-    font-size: 1.5rem;
-  }
+input[type="text"] {
+  width: 100%;
+  padding: var(--space-1);
+  margin-bottom: var(--space-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  font-size: 1rem;
+  background: #fafafa;
+  box-sizing: border-box;
+}
+
+.button-group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin-top: var(--space-3);
+}
+
+.btn {
+  padding: var(--space-1) var(--space-2);
+  font-size: 1rem;
+  border-radius: var(--radius);
+  border: none;
+  cursor: pointer;
+  margin-bottom: 0;
+  transition: background 0.2s, color 0.2s, border 0.2s;
+}
+.btn-primary {
+  background: var(--accent);
+  color: #fff;
+  border: 1px solid var(--accent);
+  font-weight: 600;
+}
+.btn-primary:hover:enabled {
+  background: var(--accent-dark);
+  border-color: var(--accent-dark);
+}
+.btn-primary:disabled {
+  background: #ffd8b0;
+  color: #fff;
+  border-color: #ffd8b0;
+  cursor: not-allowed;
+}
+.btn-secondary {
+  background: #fff;
+  color: var(--accent);
+  border: 1px solid var(--accent);
+  font-weight: 500;
+}
+.btn-secondary:hover:enabled {
+  background: #fff3e0;
 }
 
 .status-message {
-  margin: 16px 0;
-  padding: 12px;
-  border-radius: 2px;
+  margin: var(--space-2) 0;
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius);
   font-size: 1rem;
 }
 .status-success {
@@ -93,7 +146,7 @@ label {
 }
 .status-loading {
   background: #fffde7;
-  color: #f57c00;
+  color: var(--accent);
   border: 1px solid #ffe082;
 }
 
@@ -103,12 +156,22 @@ label {
   margin: 0;
 }
 .trips-list li {
-  padding: 10px 0;
-  border-bottom: 1px solid #eee;
-  font-size: 1rem;
+  padding: var(--space-1) 0;
+  border-bottom: 1px solid var(--border);
   display: flex;
   justify-content: space-between;
+  align-items: center;
+  font-size: 1rem;
 }
 .trips-list li:last-child {
   border-bottom: none;
+}
+
+@media (max-width: 700px) {
+  .container {
+    padding: var(--space-2) var(--space-1);
+  }
+  h1 {
+    font-size: 1.25rem;
+  }
 }
