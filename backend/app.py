@@ -1,9 +1,14 @@
 
 
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, send_from_directory
 from flask_cors import CORS
 from db import get_db_connection
 import logging
+
+import pathlib
+
+# Path to the frontend directory (relative to backend)
+FRONTEND_DIR = pathlib.Path(__file__).parent.parent / "frontend"
 
 app = Flask(__name__)
 CORS(app)
@@ -11,12 +16,36 @@ CORS(app)
 # Simple logging setup
 logging.basicConfig(level=logging.INFO, format='%(asctime)s %(levelname)s %(message)s')
 
+
 @app.before_request
 def log_request_info():
     logging.info(f"{request.method} {request.path} - {request.remote_addr}")
 
-@app.route("/", methods=["GET"])
-def home():
+
+# --- Serve Frontend ---
+@app.route("/")
+def serve_index():
+    return send_from_directory(FRONTEND_DIR, "index.html")
+
+@app.route("/dashboard.html")
+def serve_dashboard():
+    return send_from_directory(FRONTEND_DIR, "dashboard.html")
+
+@app.route("/request.html")
+def serve_request():
+    return send_from_directory(FRONTEND_DIR, "request.html")
+
+@app.route("/css/<path:filename>")
+def serve_css(filename):
+    return send_from_directory(FRONTEND_DIR / "css", filename)
+
+@app.route("/js/<path:filename>")
+def serve_js(filename):
+    return send_from_directory(FRONTEND_DIR / "js", filename)
+
+# --- API Home (for health check) ---
+@app.route("/api", methods=["GET"])
+def api_home():
     return jsonify({"message": "BodaConnect API is running"})
 
 
@@ -87,5 +116,8 @@ def rider_dashboard():
         except Exception:
             pass
 
+import os
+
 if __name__ == "__main__":
-    app.run(debug=True)
+    debug_mode = os.environ.get("FLASK_DEBUG", "False").lower() == "true"
+    app.run(host="0.0.0.0", port=5000, debug=debug_mode)
