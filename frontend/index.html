@@ -3,21 +3,125 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>BodaConnect</title>
+  <title>BodaBoda Digital – Fast Rides, On Demand</title>
   <link rel="stylesheet" href="css/styles.css">
 </head>
 <body>
-  <header class="header">
-    <span class="logo">BodaConnect</span>
-  </header>
-  <main class="container">
-    <h1>Welcome to BodaConnect</h1>
-    <p>Fast and reliable bodaboda rides</p>
-    <p style="color:#888; margin-bottom:24px;">Choose your role</p>
-    <div class="button-group">
-      <a href="request.html"><button class="btn btn-primary" type="button">Request Ride</button></a>
-      <a href="dashboard.html"><button class="btn btn-secondary" type="button">Rider Dashboard</button></a>
+
+  <nav class="navbar">
+    <a href="/" class="navbar-brand">
+      BodaBoda Digital
+    </a>
+    <div class="navbar-links" id="nav-links">
+      <a href="login.html"><button class="btn btn-ghost">Login</button></a>
+      <a href="register.html"><button class="btn btn-primary">Get Started</button></a>
     </div>
-  </main>
+  </nav>
+
+  <section class="hero">
+    <h1>Book a Bodaboda,<br><span>Get There Faster</span></h1>
+    <p>BodaBoda Digital connects passengers with nearby boda riders. Set your pickup, enter your destination, and get moving.</p>
+    <div class="hero-cta">
+      <a href="register.html"><button class="btn btn-primary btn-lg">Get a Ride</button></a>
+      <a href="register.html?role=rider"><button class="btn btn-outline btn-lg" style="border-color:rgba(255,255,255,.5);color:#fff;">Drive with Us</button></a>
+    </div>
+  </section>
+
+  <div style="padding: 0 24px;">
+    <div class="stats-bar">
+      <div class="stat-item">
+        <span class="num" id="stat-riders">—</span>
+        <span class="label">Available Riders</span>
+      </div>
+      <div class="stat-item">
+        <span class="num" id="stat-trips">—</span>
+        <span class="label">Trips Completed</span>
+      </div>
+      <div class="stat-item">
+        <span class="num" id="stat-customers">—</span>
+        <span class="label">Customers</span>
+      </div>
+    </div>
+  </div>
+
+  <section class="section" style="background:#fff; margin-top:40px;">
+    <h2 class="section-title">How it works</h2>
+    <p class="section-sub">Three steps to get from A to B</p>
+    <div class="steps">
+      <div class="step">
+        <div class="step-num">1</div>
+        <h3>Create an account</h3>
+        <p>Register as a customer or as a rider — takes about a minute</p>
+      </div>
+      <div class="step">
+        <div class="step-num">2</div>
+        <h3>Set pickup and drop-off</h3>
+        <p>Type the two locations and submit your request</p>
+      </div>
+      <div class="step">
+        <div class="step-num">3</div>
+        <h3>Ride and pay</h3>
+        <p>An available rider gets assigned and the fare is shown upfront</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="section">
+    <h2 class="section-title">What we built</h2>
+    <p class="section-sub">A ride-hailing platform for boda boda trips, developed as part of CS 421</p>
+    <div class="card-grid">
+      <div class="feature-card">
+        <h3>Registered riders</h3>
+        <p>Riders sign up with their bike plate and contact number. Customers can see who is available before booking.</p>
+      </div>
+      <div class="feature-card">
+        <h3>Location-based requests</h3>
+        <p>You type your pickup and destination. The system assigns the nearest available rider automatically.</p>
+      </div>
+      <div class="feature-card">
+        <h3>Upfront fare</h3>
+        <p>The estimated fare is calculated when you submit the request — no surprises at the end of the trip.</p>
+      </div>
+      <div class="feature-card">
+        <h3>No app required</h3>
+        <p>Runs entirely in the browser. Works on desktop and mobile without installing anything.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="section" style="background: linear-gradient(135deg, var(--dark), #0F3460); color:#fff; text-align:center;">
+    <h2 style="font-size:2rem; font-weight:800; margin-bottom:12px;">Sign up to get started</h2>
+    <p style="color:rgba(255,255,255,.7); margin-bottom:28px; font-size:1.05rem;">Create an account as a customer to book rides, or as a rider to accept trips.</p>
+    <a href="register.html"><button class="btn btn-primary btn-lg">Create an Account</button></a>
+  </section>
+
+  <footer>
+    <strong>BodaBoda Digital</strong> &copy; 2026 &middot; CS 421 – Software Deployment and Management
+  </footer>
+
+  <script src="js/app.js"></script>
+  <script>
+    // Load live stats
+    fetch('/api/stats')
+      .then(r => r.json())
+      .then(d => {
+        document.getElementById('stat-riders').textContent    = d.riders    ?? '—';
+        document.getElementById('stat-trips').textContent     = d.trips     ?? '—';
+        document.getElementById('stat-customers').textContent = d.customers ?? '—';
+      })
+      .catch(() => {});
+
+    // If already logged in, update nav
+    const user = getStoredUser();
+    if (user) {
+      const nav = document.getElementById('nav-links');
+      const dash = user.role === 'rider' ? 'rider-dashboard.html' : 'dashboard.html';
+      nav.innerHTML = `
+        <span style="font-size:.9rem;color:var(--text-muted);">Hi, <strong>${user.name.split(' ')[0]}</strong></span>
+        <a href="${dash}"><button class="btn btn-ghost">My Dashboard</button></a>
+        <button class="btn btn-outline btn-sm" onclick="logout()">Logout</button>
+      `;
+    }
+  </script>
 </body>
 </html>

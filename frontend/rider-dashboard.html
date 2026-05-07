@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Rider Dashboard – BodaBoda Digital</title>
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+
+  <nav class="navbar">
+    <a href="/" class="navbar-brand">BodaBoda Digital</a>
+    <div class="navbar-links">
+      <span id="nav-status-badge"></span>
+      <button class="btn btn-outline btn-sm" onclick="logout()">Logout</button>
+    </div>
+  </nav>
+
+  <div class="page-wrapper">
+
+    <div class="page-header">
+      <h1 id="rider-name">Rider Dashboard</h1>
+      <p id="rider-sub" class="text-muted"></p>
+    </div>
+
+    <div id="alert-box"></div>
+
+    <div class="stats-grid" style="margin-bottom:28px;">
+      <div class="stat-card">
+        <div class="stat-label">Completed</div>
+        <div class="stat-value" id="stat-completed">—</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Pending</div>
+        <div class="stat-value" id="stat-pending">—</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Rating</div>
+        <div class="stat-value" id="stat-rating">—</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Bike Plate</div>
+        <div class="stat-value" id="stat-plate" style="font-size:1.1rem;">—</div>
+      </div>
+    </div>
+
+    <div class="card" style="margin-bottom:28px;">
+      <h3 style="font-size:1rem; margin-bottom:14px;">Availability</h3>
+      <p class="text-muted fs-sm" style="margin-bottom:12px;">Set your availability below. Only available riders are assigned new trips.</p>
+      <div class="status-toggle" id="status-toggle">
+        <button class="status-btn" data-status="available" onclick="setStatus('available')">Available</button>
+        <button class="status-btn" data-status="busy"      onclick="setStatus('busy')">Busy</button>
+        <button class="status-btn" data-status="offline"   onclick="setStatus('offline')">Offline</button>
+      </div>
+      <div id="status-msg"></div>
+    </div>
+
+    <div class="table-wrap">
+      <h3 style="padding:20px 24px 0;">Assigned Trips</h3>
+      <div id="trips-body">
+        <p style="padding:24px; color:var(--text-muted);">Loading trips...</p>
+      </div>
+    </div>
+
+  </div>
+
+  <script src="js/app.js"></script>
+  <script>
+    requireLogin('rider');
+    const user = getStoredUser();
+
+    async function loadDashboard() {
+      try {
+        const res  = await fetch(`/api/dashboard/rider?user_id=${user.user_id}`);
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Failed to load dashboard');
+
+        document.getElementById('rider-name').textContent     = data.name;
+        document.getElementById('rider-sub').textContent      = `Bike: ${data.bike_plate}  ·  Rating: ${data.rating.toFixed(1)} / 5`;
+        document.getElementById('stat-completed').textContent = data.completed;
+        document.getElementById('stat-pending').textContent   = data.pending;
+        document.getElementById('stat-rating').textContent    = `${data.rating.toFixed(1)} / 5`;
+        document.getElementById('stat-plate').textContent     = data.bike_plate;
+
+        document.querySelectorAll('.status-btn').forEach(btn => {
+          btn.classList.toggle('active', btn.dataset.status === data.status);
+        });
+        updateNavBadge(data.status);
+
+        if (!data.trips.length) {
+          document.getElementById('trips-body').innerHTML = `
+            <div style="padding:40px; text-align:center; color:var(--text-muted);">
+              No trips assigned yet. Switch your status to <strong>Available</strong> to start receiving requests.
+            </div>`;
+          return;
+        }
+
+        document.getElementById('trips-body').innerHTML = `
+          <table>
+            <thead>
+              <tr>
+                <th>#</th><th>Customer</th><th>Pickup</th><th>Destination</th>
+                <th>Fare</th><th>Status</th><th>Date</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${data.trips.map(t => `
+                <tr>
+                  <td data-label="#">${t.id}</td>
+                  <td data-label="Customer">${t.customer_name || '—'}</td>
+                  <td data-label="Pickup">${t.pickup}</td>
+                  <td data-label="Destination">${t.destination}</td>
+                  <td data-label="Fare">TZS ${t.fare ?? '—'}</td>
+                  <td data-label="Status"><span class="badge ${badgeClass(t.status)}">${t.status}</span></td>
+                  <td data-label="Date">${fmtDate(t.created_at)}</td>
+                </tr>`).join('')}
+            </tbody>
+          </table>`;
+      } catch(err) {
+        document.getElementById('alert-box').innerHTML = `<div class="alert alert-error">${err.message}</div>`;
+      }
+    }
+
+    async function setStatus(status) {
+      const msgEl = document.getElementById('status-msg');
+      msgEl.innerHTML = '<span class="text-muted fs-sm">Updating...</span>';
+      try {
+        const res  = await fetch('/api/riders/status', {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ user_id: user.user_id, status }),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error);
+        document.querySelectorAll('.status-btn').forEach(btn => {
+          btn.classList.toggle('active', btn.dataset.status === status);
+        });
+        updateNavBadge(status);
+        msgEl.innerHTML = `<span class="text-success fs-sm">${data.message}</span>`;
+        setTimeout(() => msgEl.innerHTML = '', 3000);
+      } catch(err) {
+        msgEl.innerHTML = `<span class="text-danger fs-sm">${err.message}</span>`;
+      }
+    }
+
+    function updateNavBadge(status) {
+      const colors = { available: 'badge-success', busy: 'badge-warning', offline: 'badge-secondary' };
+      document.getElementById('nav-status-badge').innerHTML =
+        `<span class="badge ${colors[status] || 'badge-secondary'}">${status}</span>`;
+    }
+
+    function badgeClass(s) {
+      return {completed:'badge-success', active:'badge-info', pending:'badge-warning', cancelled:'badge-danger'}[s] || 'badge-secondary';
+    }
+    function fmtDate(d) {
+      if (!d) return '—';
+      return new Date(d).toLocaleDateString('en-KE', { day:'numeric', month:'short', year:'numeric' });
+    }
+
+    loadDashboard();
+  </script>
+</body>
+</html>

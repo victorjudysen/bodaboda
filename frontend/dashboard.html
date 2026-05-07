@@ -3,25 +3,111 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Rider Dashboard - BodaConnect</title>
+  <title>My Dashboard – BodaBoda Digital</title>
   <link rel="stylesheet" href="css/styles.css">
 </head>
-<body class="dashboard-page">
-  <header class="header"> 
-    <span class="logo">BodaConnect</span>
-  </header>
-  <main class="container">
-    <h1>Rider Dashboard</h1>
-    <div id="dashboard-status"></div>
-    <div style="margin-bottom:16px;">
-      <strong>Name:</strong> <span id="rider-name">-</span>
+<body>
+
+  <nav class="navbar">
+    <a href="/" class="navbar-brand">BodaBoda Digital</a>
+    <div class="navbar-links">
+      <a href="request.html"><button class="btn btn-primary btn-sm">+ New Ride</button></a>
+      <button class="btn btn-outline btn-sm" onclick="logout()">Logout</button>
     </div>
-    <h2>Assigned Trips</h2>
-    <ul class="trips-list" id="trips-list"></ul>
-    <div style="margin-top:24px;">
-      <a href="index.html" style="color:var(--accent); text-decoration:none;">&larr; Back to Home</a>
+  </nav>
+
+  <div class="page-wrapper">
+
+    <div class="page-header">
+      <h1>My Dashboard</h1>
+      <p id="welcome-sub" class="text-muted"></p>
     </div>
-  </main>
+
+    <div id="alert-box"></div>
+
+    <div class="stats-grid" id="stats-grid">
+      <div class="stat-card">
+        <div class="stat-label">Completed Trips</div>
+        <div class="stat-value" id="stat-completed">—</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Total Trips</div>
+        <div class="stat-value" id="stat-total">—</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Phone</div>
+        <div class="stat-value" id="stat-phone" style="font-size:1.1rem;">—</div>
+      </div>
+    </div>
+
+    <div class="table-wrap">
+      <h3 style="padding:20px 24px 0;">Recent Trips</h3>
+      <div id="trips-body">
+        <p style="padding:24px; color:var(--text-muted);">Loading trips...</p>
+      </div>
+    </div>
+
+  </div>
+
   <script src="js/app.js"></script>
+  <script>
+    requireLogin('customer');
+    const user = getStoredUser();
+    document.getElementById('welcome-sub').textContent = user.name;
+
+    async function loadDashboard() {
+      try {
+        const res  = await fetch(`/api/dashboard/customer?user_id=${user.user_id}`);
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Failed to load dashboard');
+
+        document.getElementById('stat-completed').textContent = data.completed;
+        document.getElementById('stat-total').textContent     = data.trips.length;
+        document.getElementById('stat-phone').textContent     = data.phone || '—';
+
+        if (!data.trips.length) {
+          document.getElementById('trips-body').innerHTML = `
+            <div style="padding:40px; text-align:center; color:var(--text-muted);">
+              No trips on record. <a href="request.html" style="color:var(--orange); font-weight:600;">Request a ride</a>
+            </div>`;
+          return;
+        }
+
+        document.getElementById('trips-body').innerHTML = `
+          <table>
+            <thead>
+              <tr>
+                <th>#</th><th>Pickup</th><th>Destination</th><th>Rider</th>
+                <th>Fare</th><th>Status</th><th>Date</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${data.trips.map(t => `
+                <tr>
+                  <td data-label="#">${t.id}</td>
+                  <td data-label="Pickup">${t.pickup}</td>
+                  <td data-label="Destination">${t.destination}</td>
+                  <td data-label="Rider">${t.rider_name || '—'}</td>
+                  <td data-label="Fare">TZS ${t.fare ?? '—'}</td>
+                  <td data-label="Status"><span class="badge ${badgeClass(t.status)}">${t.status}</span></td>
+                  <td data-label="Date">${fmtDate(t.created_at)}</td>
+                </tr>`).join('')}
+            </tbody>
+          </table>`;
+      } catch(err) {
+        document.getElementById('alert-box').innerHTML = `<div class="alert alert-error">${err.message}</div>`;
+      }
+    }
+
+    function badgeClass(s) {
+      return {completed:'badge-success', active:'badge-info', pending:'badge-warning', cancelled:'badge-danger'}[s] || 'badge-secondary';
+    }
+    function fmtDate(d) {
+      if (!d) return '—';
+      return new Date(d).toLocaleDateString('en-KE', { day:'numeric', month:'short', year:'numeric' });
+    }
+
+    loadDashboard();
+  </script>
 </body>
 </html>

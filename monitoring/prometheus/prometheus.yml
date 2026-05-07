@@ -1,5 +1,5 @@
 global:
-  scrape_interval: 15s
+  scrape_interval:     15s
   evaluation_interval: 15s
 
 scrape_configs:
@@ -7,10 +7,8 @@ scrape_configs:
     static_configs:
       - targets: ["localhost:9090"]
 
-  - job_name: "node-exporter"
+  - job_name: "bodaboda-backend"
     static_configs:
-      - targets: ["node-exporter:9100"]
-    relabel_configs:
-      - source_labels: [__address__]
-        target_label: instance
-        replacement: "local-machine"
+      - targets: ["backend:5000"]
+    metrics_path: "/metrics"
+    scrape_interval: 15s

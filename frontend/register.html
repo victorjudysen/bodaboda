@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Register – BodaBoda Digital</title>
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body class="auth-page">
+
+  <div class="auth-card" style="max-width:480px;">
+    <div class="logo">BodaBoda Digital</div>
+    <div class="logo-sub">New account registration</div>
+
+    <h2>Sign up</h2>
+    <div id="alert-box"></div>
+
+    <div class="role-selector">
+      <div class="role-option active" data-role="customer" id="role-customer">
+        <span>Customer</span>
+      </div>
+      <div class="role-option" data-role="rider" id="role-rider">
+        <span>Rider</span>
+      </div>
+    </div>
+
+    <form id="register-form">
+      <input type="hidden" id="role-input" name="role" value="customer">
+
+      <div class="form-group">
+        <label class="form-label" for="name">Full name</label>
+        <input class="form-input" type="text" id="name" name="name" required placeholder="e.g. Amina Salim">
+      </div>
+      <div class="form-group">
+        <label class="form-label" for="email">Email address</label>
+        <input class="form-input" type="email" id="email" name="email" required placeholder="you@example.com" autocomplete="email">
+      </div>
+      <div class="form-group">
+        <label class="form-label" for="phone">Phone number</label>
+        <input class="form-input" type="tel" id="phone" name="phone" placeholder="+254 712 345 678">
+      </div>
+      <div class="form-group">
+        <label class="form-label" for="password">Password</label>
+        <input class="form-input" type="password" id="password" name="password" required placeholder="At least 6 characters" autocomplete="new-password">
+      </div>
+
+      <div class="form-group" id="plate-group" style="display:none;">
+        <label class="form-label" for="bike_plate">Bike registration plate</label>
+        <input class="form-input" type="text" id="bike_plate" name="bike_plate" placeholder="e.g. KCA 456X">
+      </div>
+
+      <button class="btn btn-primary btn-block" type="submit" id="register-btn">
+        Create Account
+      </button>
+    </form>
+
+    <div class="auth-footer">
+      Already have an account? <a href="login.html">Login</a>
+    </div>
+    <div class="auth-footer mt-1">
+      <a href="/" style="color:var(--text-muted);">← Back to home</a>
+    </div>
+  </div>
+
+  <script src="js/app.js"></script>
+  <script>
+    redirectIfLoggedIn();
+
+    // Pre-select role from URL param
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get('role') === 'rider') selectRole('rider');
+
+    // Role toggle
+    document.querySelectorAll('.role-option').forEach(el => {
+      el.addEventListener('click', () => selectRole(el.dataset.role));
+    });
+
+    function selectRole(role) {
+      document.querySelectorAll('.role-option').forEach(el => el.classList.remove('active'));
+      document.querySelector(`[data-role="${role}"]`).classList.add('active');
+      document.getElementById('role-input').value = role;
+      document.getElementById('plate-group').style.display = role === 'rider' ? 'block' : 'none';
+    }
+
+    document.getElementById('register-form').addEventListener('submit', async function(e) {
+      e.preventDefault();
+      const btn      = document.getElementById('register-btn');
+      const alertBox = document.getElementById('alert-box');
+      btn.disabled = true;
+      btn.innerHTML = '<span class="spinner"></span> Creating account...';
+      alertBox.innerHTML = '';
+
+      const payload = {
+        name:       document.getElementById('name').value.trim(),
+        email:      document.getElementById('email').value.trim(),
+        phone:      document.getElementById('phone').value.trim(),
+        password:   document.getElementById('password').value,
+        role:       document.getElementById('role-input').value,
+        bike_plate: document.getElementById('bike_plate').value.trim(),
+      };
+
+      if (payload.password.length < 6) {
+        alertBox.innerHTML = '<div class="alert alert-error">Password must be at least 6 characters.</div>';
+        btn.disabled = false; btn.textContent = 'Create Account';
+        return;
+      }
+
+      try {
+        const res  = await fetch('/api/register', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Registration failed');
+
+        storeUser(data);
+        const redirect = data.role === 'rider' ? 'rider-dashboard.html' : 'dashboard.html';
+        window.location.href = redirect;
+      } catch(err) {
+        alertBox.innerHTML = `<div class="alert alert-error">${err.message}</div>`;
+        btn.disabled = false;
+        btn.textContent = 'Create Account';
+      }
+    });
+  </script>
+</body>
+</html>

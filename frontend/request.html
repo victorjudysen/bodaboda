@@ -3,27 +3,139 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Request a Ride - BodaConnect</title>
+  <title>Request a Ride – BodaBoda Digital</title>
   <link rel="stylesheet" href="css/styles.css">
 </head>
-<body class="request-page">
-  <header class="header">
-    <span class="logo">BodaConnect</span>
-  </header>
-  <main class="container">
-    <h1>Request a Ride</h1>
-    <form id="request-form" autocomplete="off" style="margin-bottom:24px;">
-      <label for="pickup">Pickup Location</label>
-      <input type="text" id="pickup" name="pickup" required placeholder="e.g. Kariakoo Market">
-      <label for="destination">Destination</label>
-      <input type="text" id="destination" name="destination" required placeholder="e.g. Mwenge Bus Terminal">
-      <button class="btn btn-primary" id="submit-btn" type="submit">Request Ride</button>
-    </form>
-    <div id="request-status"></div>
-    <div style="margin-top:24px;">
-      <a href="index.html" style="color:var(--accent); text-decoration:none;">&larr; Back to Home</a>
+<body>
+
+  <nav class="navbar">
+    <a href="/" class="navbar-brand">BodaBoda Digital</a>
+    <div class="navbar-links">
+      <span id="nav-user" style="font-size:.9rem;color:var(--text-muted);"></span>
+      <a href="dashboard.html"><button class="btn btn-ghost btn-sm">My Trips</button></a>
+      <button class="btn btn-outline btn-sm" onclick="logout()">Logout</button>
     </div>
-  </main>
+  </nav>
+
+  <div class="page-wrapper">
+    <div class="page-header">
+      <h1>Request a Ride</h1>
+      <p>Enter where you are and where you need to go. A rider will be assigned to your trip.</p>
+    </div>
+
+    <div class="request-layout">
+
+      <!-- Request form -->
+      <div class="card">
+        <h3 style="margin-bottom:20px; font-size:1.1rem;">New trip request</h3>
+        <div id="ride-alert"></div>
+
+        <form id="request-form">
+          <div class="form-group">
+            <label class="form-label" for="pickup">Pickup location</label>
+            <input class="form-input" type="text" id="pickup" name="pickup" required placeholder="e.g. Kariakoo Market">
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="destination">Destination</label>
+            <input class="form-input" type="text" id="destination" name="destination" required placeholder="e.g. Mwenge Bus Terminal">
+          </div>
+          <button class="btn btn-primary btn-block" type="submit" id="ride-btn">
+            Request Ride
+          </button>
+        </form>
+
+        <div id="ride-result" style="display:none;" class="mt-2">
+          <div class="alert alert-success" id="ride-success-msg"></div>
+          <div style="display:flex;gap:12px;flex-wrap:wrap;margin-top:8px;">
+            <div class="stat-card" style="flex:1;min-width:100px;">
+              <div class="stat-label">Rider</div>
+              <div class="stat-value" id="result-rider" style="font-size:1.1rem;"></div>
+            </div>
+            <div class="stat-card" style="flex:1;min-width:100px;">
+              <div class="stat-label">Est. Fare</div>
+              <div class="stat-value" id="result-fare" style="font-size:1.1rem; color:var(--orange);"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Available riders -->
+      <div>
+        <div class="card" style="margin-bottom:20px;">
+          <h3 style="margin-bottom:16px; font-size:1rem;">Available Riders</h3>
+          <div id="riders-list"><p class="text-muted fs-sm">Loading riders...</p></div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
   <script src="js/app.js"></script>
+  <script>
+    requireLogin();
+    const user = getStoredUser();
+    document.getElementById('nav-user').textContent = `Hi, ${user.name.split(' ')[0]}`;
+
+    async function loadRiders() {
+      try {
+        const res    = await fetch('/api/riders');
+        const riders = await res.json();
+        const el     = document.getElementById('riders-list');
+        const avail  = riders.filter(r => r.status === 'available');
+        if (!avail.length) {
+          el.innerHTML = '<p class="text-muted fs-sm">No riders available right now.</p>';
+          return;
+        }
+        el.innerHTML = `<div class="riders-grid">` + avail.slice(0, 6).map(r => `
+          <div class="rider-card">
+            <div class="rider-avatar">${r.name.charAt(0).toUpperCase()}</div>
+            <h4>${r.name}</h4>
+            <p>${r.bike_plate}</p>
+            <div style="font-size:.85rem;">${parseFloat(r.rating).toFixed(1)} / 5</div>
+            <span class="badge badge-success" style="margin-top:6px;">Available</span>
+          </div>
+        `).join('') + `</div>`;
+      } catch(e) {
+        document.getElementById('riders-list').innerHTML = '<p class="text-muted fs-sm">Could not load riders.</p>';
+      }
+    }
+    loadRiders();
+
+    document.getElementById('request-form').addEventListener('submit', async function(e) {
+      e.preventDefault();
+      const btn      = document.getElementById('ride-btn');
+      const alertEl  = document.getElementById('ride-alert');
+      const resultEl = document.getElementById('ride-result');
+      btn.disabled = true;
+      btn.innerHTML = '<span class="spinner"></span> Finding rider...';
+      alertEl.innerHTML = '';
+      resultEl.style.display = 'none';
+
+      const pickup      = document.getElementById('pickup').value.trim();
+      const destination = document.getElementById('destination').value.trim();
+
+      try {
+        const res  = await fetch('/api/trips', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ customer_id: user.user_id, pickup, destination }),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Request failed');
+
+        document.getElementById('ride-success-msg').textContent = data.message;
+        document.getElementById('result-rider').textContent = data.rider;
+        document.getElementById('result-fare').textContent  = `TZS ${data.fare}`;
+        resultEl.style.display = 'block';
+        document.getElementById('request-form').reset();
+        loadRiders();
+      } catch(err) {
+        alertEl.innerHTML = `<div class="alert alert-error">${err.message}</div>`;
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'Request Ride';
+      }
+    });
+  </script>
 </body>
 </html>

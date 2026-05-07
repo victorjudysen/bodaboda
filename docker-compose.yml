@@ -1,30 +1,34 @@
-version: "3.8"
-
 services:
 
-  node-exporter:
-    image: prom/node-exporter:latest
-    container_name: node-exporter
+  backend:
+    build: ./backend
+    container_name: bodaboda-backend
     restart: unless-stopped
-    pid: host
+    env_file: ./backend/.env
     volumes:
-      - /proc:/host/proc:ro
-      - /sys:/host/sys:ro
-      - /:/host/rootfs:ro
-    command:
-      - "--path.procfs=/host/proc"
-      - "--path.sysfs=/host/sys"
-      - "--path.rootfs=/host/rootfs"
-      - "--collector.filesystem.mount-points-exclude=^/(sys|proc|dev|host|etc)($$|/)"
+      - db_data:/app/data
     networks:
-      - monitoring
+      - bodaboda-net
+    ports:
+      - "5000:5000"
+
+  frontend:
+    build: ./frontend
+    container_name: bodaboda-frontend
+    restart: unless-stopped
+    depends_on:
+      - backend
+    networks:
+      - bodaboda-net
+    ports:
+      - "80:80"
 
   prometheus:
     image: prom/prometheus:latest
-    container_name: prometheus
+    container_name: bodaboda-prometheus
     restart: unless-stopped
     volumes:
-      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./monitoring/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
       - prometheus_data:/prometheus
     command:
       - "--config.file=/etc/prometheus/prometheus.yml"
@@ -34,13 +38,13 @@ services:
     ports:
       - "9090:9090"
     depends_on:
-      - node-exporter
+      - backend
     networks:
-      - monitoring
+      - bodaboda-net
 
   grafana:
     image: grafana/grafana:latest
-    container_name: grafana
+    container_name: bodaboda-grafana
     restart: unless-stopped
     environment:
       - GF_SECURITY_ADMIN_USER=admin
@@ -48,18 +52,19 @@ services:
       - GF_USERS_ALLOW_SIGN_UP=false
     volumes:
       - grafana_data:/var/lib/grafana
-      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
     ports:
       - "3000:3000"
     depends_on:
       - prometheus
     networks:
-      - monitoring
+      - bodaboda-net
 
 volumes:
+  db_data:
   prometheus_data:
   grafana_data:
 
 networks:
-  monitoring:
+  bodaboda-net:
     driver: bridge

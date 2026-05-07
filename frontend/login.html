@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Login – BodaBoda Digital</title>
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body class="auth-page">
+
+  <div class="auth-card">
+    <div class="logo">BodaBoda Digital</div>
+    <div class="logo-sub">Sign in to your account</div>
+
+    <h2>Log in</h2>
+    <div id="alert-box"></div>
+
+    <form id="login-form">
+      <div class="form-group">
+        <label class="form-label" for="email">Email address</label>
+        <input class="form-input" type="email" id="email" name="email" required placeholder="you@example.com" autocomplete="email">
+      </div>
+      <div class="form-group">
+        <label class="form-label" for="password">Password</label>
+        <input class="form-input" type="password" id="password" name="password" required placeholder="Enter your password" autocomplete="current-password">
+      </div>
+      <button class="btn btn-primary btn-block" type="submit" id="login-btn">
+        Login
+      </button>
+    </form>
+
+    <div class="auth-footer">
+      Don't have an account? <a href="register.html">Register here</a>
+    </div>
+    <div class="auth-footer mt-1">
+      <a href="/" style="color:var(--text-muted);">← Back to home</a>
+    </div>
+
+    <div style="margin-top:20px; padding:14px; background:var(--gray-1); border-radius:var(--radius); font-size:.82rem; color:var(--text-muted);">
+      <strong>Demo accounts</strong> (password: <code>pass123</code>)<br>
+      Customer: <code>amina@example.com</code><br>
+      Rider: <code>juma@bodaboda.com</code>
+    </div>
+  </div>
+
+  <script src="js/app.js"></script>
+  <script>
+    redirectIfLoggedIn();
+
+    document.getElementById('login-form').addEventListener('submit', async function(e) {
+      e.preventDefault();
+      const btn = document.getElementById('login-btn');
+      const alertBox = document.getElementById('alert-box');
+      btn.disabled = true;
+      btn.innerHTML = '<span class="spinner"></span> Logging in...';
+      alertBox.innerHTML = '';
+
+      const email    = document.getElementById('email').value.trim();
+      const password = document.getElementById('password').value;
+
+      try {
+        const res  = await fetch('/api/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email, password }),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Login failed');
+
+        storeUser(data);
+        const redirect = data.role === 'rider' ? 'rider-dashboard.html' : 'dashboard.html';
+        window.location.href = redirect;
+      } catch(err) {
+        alertBox.innerHTML = `<div class="alert alert-error">${err.message}</div>`;
+        btn.disabled = false;
+        btn.textContent = 'Login';
+      }
+    });
+  </script>
+</body>
+</html>
