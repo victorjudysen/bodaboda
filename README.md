@@ -2,6 +2,9 @@
 
 A minimal, functional ride-hailing web app with infrastructure monitoring.
 
+[![CI](https://github.com/victorjudysen/bodaboda/actions/workflows/ci.yml/badge.svg)](https://github.com/victorjudysen/bodaboda/actions/workflows/ci.yml)
+[![CD](https://github.com/victorjudysen/bodaboda/actions/workflows/cd.yml/badge.svg)](https://github.com/victorjudysen/bodaboda/actions/workflows/cd.yml)
+
 ## Project Structure
 
 ```
