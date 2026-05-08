@@ -3,3 +3,4 @@ python-dotenv
 flask-cors
 werkzeug
 prometheus-client
+pytest

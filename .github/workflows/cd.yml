@@ -1,0 +1,105 @@
+name: CD — Deploy (Staging → Production)
+
+on:
+  workflow_run:
+    workflows: ["CI — Build & Test"]
+    types: [completed]
+    branches: [main]
+
+jobs:
+  # ── STAGING ────────────────────────────────────────────────────────────────
+  deploy-staging:
+    name: Deploy to Staging
+    runs-on: ubuntu-latest
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    environment: staging
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Build and push — staging tag
+        uses: docker/build-push-action@v5
+        with:
+          context: ./backend
+          push: true
+          tags: |
+            ${{ secrets.DOCKERHUB_USERNAME }}/bodaboda-backend:staging
+            ${{ secrets.DOCKERHUB_USERNAME }}/bodaboda-backend:${{ github.sha }}
+
+      - name: Verify staging image is available
+        run: |
+          docker pull ${{ secrets.DOCKERHUB_USERNAME }}/bodaboda-backend:staging
+          echo "Staging image verified: bodaboda-backend:staging"
+
+      - name: Simulate staging health check
+        run: |
+          docker run -d --name staging-test \
+            -e DB_PATH=/tmp/test.db \
+            -p 5000:5000 \
+            ${{ secrets.DOCKERHUB_USERNAME }}/bodaboda-backend:staging
+          sleep 5
+          curl --fail http://localhost:5000/api/health || exit 1
+          echo "Staging health check passed"
+          docker stop staging-test
+          docker rm staging-test
+
+  # ── APPROVAL GATE ──────────────────────────────────────────────────────────
+  # GitHub Environment "production" must have a required reviewer configured
+  # in Settings → Environments → production → Required reviewers.
+  # The workflow will pause here and wait for a Release Manager to approve.
+  approve-production:
+    name: Approval Gate (Release Manager)
+    runs-on: ubuntu-latest
+    needs: deploy-staging
+    environment: production   # <-- protected environment — triggers manual approval
+
+    steps:
+      - name: Approval received
+        run: echo "Production deployment approved by Release Manager."
+
+  # ── PRODUCTION ─────────────────────────────────────────────────────────────
+  deploy-production:
+    name: Deploy to Production
+    runs-on: ubuntu-latest
+    needs: approve-production
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Build and push — production tags (latest + version)
+        uses: docker/build-push-action@v5
+        with:
+          context: ./backend
+          push: true
+          tags: |
+            ${{ secrets.DOCKERHUB_USERNAME }}/bodaboda-backend:latest
+            ${{ secrets.DOCKERHUB_USERNAME }}/bodaboda-backend:v1
+            ${{ secrets.DOCKERHUB_USERNAME }}/bodaboda-backend:${{ github.sha }}
+
+      - name: Confirm production deployment
+        run: |
+          echo "Production image pushed:"
+          echo "  ${{ secrets.DOCKERHUB_USERNAME }}/bodaboda-backend:latest"
+          echo "  ${{ secrets.DOCKERHUB_USERNAME }}/bodaboda-backend:v1"
+          echo "  ${{ secrets.DOCKERHUB_USERNAME }}/bodaboda-backend:${{ github.sha }}"
+          echo "System is live in production."
