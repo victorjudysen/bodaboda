@@ -55,6 +55,19 @@
       <div id="status-msg"></div>
     </div>
 
+    <div class="card" style="margin-bottom:28px;">
+      <div style="display:flex;justify-content:space-between;gap:12px;align-items:flex-start;flex-wrap:wrap;margin-bottom:14px;">
+        <div>
+          <h3 style="font-size:1rem; margin-bottom:6px;">Live Ride Requests</h3>
+          <p class="text-muted fs-sm">Realtime ride requests delivered through MQTT and streamed into this dashboard.</p>
+        </div>
+        <span id="stream-status" class="badge badge-secondary">Connecting</span>
+      </div>
+      <div id="live-requests" class="live-requests">
+        <p class="text-muted fs-sm" id="live-empty">Waiting for incoming requests...</p>
+      </div>
+    </div>
+
     <div class="table-wrap">
       <h3 style="padding:20px 24px 0;">Assigned Trips</h3>
       <div id="trips-body">
@@ -68,6 +81,7 @@
   <script>
     requireLogin('rider');
     const user = getStoredUser();
+    let rideStream = null;
 
     async function loadDashboard() {
       try {
@@ -143,6 +157,60 @@
       }
     }
 
+    function appendIncomingRequest(event) {
+      if (String(event.rider_id) !== String(user.rider_id)) return;
+
+      const feed = document.getElementById('live-requests');
+      document.getElementById('live-empty')?.remove();
+
+      const item = document.createElement('div');
+      item.className = 'live-request-card';
+      item.innerHTML = `
+        <div style="display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;">
+          <strong>${event.customer_name || 'Customer'}</strong>
+          <span class="badge badge-warning">Pending</span>
+        </div>
+        <div class="text-muted fs-sm" style="margin-top:6px;">
+          ${event.pickup} -> ${event.destination}
+        </div>
+        <div style="margin-top:10px;display:flex;gap:12px;flex-wrap:wrap;font-size:.9rem;">
+          <span><strong>Fare:</strong> TZS ${event.fare ?? '—'}</span>
+          <span><strong>Trip #:</strong> ${event.trip_id}</span>
+          <span><strong>Time:</strong> ${fmtDate(event.timestamp)}</span>
+        </div>`;
+
+      feed.prepend(item);
+
+      while (feed.children.length > 5) {
+        feed.removeChild(feed.lastElementChild);
+      }
+    }
+
+    function connectRideStream() {
+      const statusEl = document.getElementById('stream-status');
+      try {
+        if (rideStream) rideStream.close();
+        rideStream = new EventSource(`/api/rides/stream?rider_id=${user.rider_id}`);
+
+        rideStream.addEventListener('ride-request', (event) => {
+          appendIncomingRequest(JSON.parse(event.data));
+        });
+
+        rideStream.onopen = () => {
+          statusEl.className = 'badge badge-success';
+          statusEl.textContent = 'Live';
+        };
+
+        rideStream.onerror = () => {
+          statusEl.className = 'badge badge-danger';
+          statusEl.textContent = 'Offline';
+        };
+      } catch (err) {
+        statusEl.className = 'badge badge-danger';
+        statusEl.textContent = 'Offline';
+      }
+    }
+
     function updateNavBadge(status) {
       const colors = { available: 'badge-success', busy: 'badge-warning', offline: 'badge-secondary' };
       document.getElementById('nav-status-badge').innerHTML =
@@ -158,6 +226,7 @@
     }
 
     loadDashboard();
+    connectRideStream();
   </script>
 </body>
 </html>

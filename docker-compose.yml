@@ -1,16 +1,37 @@
 services:
 
+  mqtt:
+    image: eclipse-mosquitto:2
+    container_name: bodaboda-mqtt
+    restart: unless-stopped
+    volumes:
+      - ./monitoring/mosquitto/mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
+      - mosquitto_data:/mosquitto/data
+      - mosquitto_log:/mosquitto/log
+    ports:
+      - "1883:1883"
+      - "9001:9001"
+    networks:
+      - bodaboda-net
+
   backend:
     build: ./backend
     container_name: bodaboda-backend
     restart: unless-stopped
     env_file: ./backend/.env
+    environment:
+      MQTT_ENABLED: "true"
+      MQTT_HOST: mqtt
+      MQTT_PORT: "1883"
+      MQTT_TOPIC: rides/requests
     volumes:
       - db_data:/app/data
     networks:
       - bodaboda-net
     ports:
       - "5000:5000"
+    depends_on:
+      - mqtt
 
   frontend:
     build: ./frontend
@@ -64,6 +85,8 @@ volumes:
   db_data:
   prometheus_data:
   grafana_data:
+  mosquitto_data:
+  mosquitto_log:
 
 networks:
   bodaboda-net:

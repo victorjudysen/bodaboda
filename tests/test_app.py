@@ -6,10 +6,12 @@ import pytest
 # Point DB at a temp file so tests never touch production data
 _tmp_db = os.path.join(tempfile.gettempdir(), "test_bodaboda.db")
 os.environ["DB_PATH"] = _tmp_db
+os.environ["MQTT_ENABLED"] = "false"
 
 # Add backend/ to path so we can import app and db directly
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "backend"))
 
+import app as app_module          # noqa: E402
 from app import app as flask_app   # noqa: E402
 from db import init_db             # noqa: E402
 
@@ -138,3 +140,82 @@ def test_stats_reflect_new_registration(client):
     })
     after = client.get("/api/stats").get_json()["customers"]
     assert after == before + 1
+
+
+def test_create_trip_publishes_mqtt_event(client, monkeypatch):
+    customer_resp = client.post("/api/register", json={
+        "name": "Eve Customer",
+        "email": "eve@test.com",
+        "password": "secret123",
+        "role": "customer",
+    })
+    customer_id = customer_resp.get_json()["user_id"]
+
+    rider_resp = client.post("/api/register", json={
+        "name": "Rider Musa",
+        "email": "musa@test.com",
+        "password": "secret123",
+        "role": "rider",
+        "bike_plate": "T 555 ABC",
+    })
+    rider_id = rider_resp.get_json()["rider_id"]
+
+    published = {}
+
+    def fake_publish(event):
+        published["event"] = event
+        return True
+
+    monkeypatch.setattr(app_module.ride_request_mqtt, "publish_ride_request", fake_publish)
+    monkeypatch.setattr(app_module.ride_request_hub, "publish", lambda event: published.setdefault("fallback", event))
+
+    resp = client.post("/api/trips", json={
+        "customer_id": customer_id,
+        "pickup": "Kariakoo Market",
+        "destination": "Mwenge Bus Terminal",
+    })
+
+    assert resp.status_code == 201
+    event = published["event"]
+    assert event["topic"] == "rides/requests"
+    assert event["customer_id"] == customer_id
+    assert event["customer_name"] == "Eve Customer"
+    assert event["rider_id"] == rider_id
+    assert event["pickup"] == "Kariakoo Market"
+    assert event["destination"] == "Mwenge Bus Terminal"
+    assert event["fare"] > 0
+    assert "timestamp" in event
+    assert "fallback" not in published
+
+
+def test_create_trip_falls_back_when_mqtt_publish_fails(client, monkeypatch):
+    customer_resp = client.post("/api/register", json={
+        "name": "Fallback Customer",
+        "email": "fallback@test.com",
+        "password": "secret123",
+        "role": "customer",
+    })
+    customer_id = customer_resp.get_json()["user_id"]
+
+    client.post("/api/register", json={
+        "name": "Rider Backup",
+        "email": "backup@test.com",
+        "password": "secret123",
+        "role": "rider",
+        "bike_plate": "T 777 XYZ",
+    })
+
+    fallback_events = []
+
+    monkeypatch.setattr(app_module.ride_request_mqtt, "publish_ride_request", lambda event: False)
+    monkeypatch.setattr(app_module.ride_request_hub, "publish", lambda event: fallback_events.append(event))
+
+    resp = client.post("/api/trips", json={
+        "customer_id": customer_id,
+        "pickup": "Posta",
+        "destination": "Sinza",
+    })
+
+    assert resp.status_code == 201
+    assert len(fallback_events) == 1
+    assert fallback_events[0]["topic"] == "rides/requests"

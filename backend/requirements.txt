@@ -3,4 +3,5 @@ python-dotenv
 flask-cors
 werkzeug
 prometheus-client
+paho-mqtt
 pytest

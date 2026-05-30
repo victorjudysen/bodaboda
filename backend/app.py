@@ -1,15 +1,20 @@
 import os
+import json
+import queue
 import logging
-from flask import Flask, request, jsonify
+from datetime import datetime, timezone
+from flask import Flask, request, jsonify, Response, stream_with_context
 from flask_cors import CORS
 from werkzeug.security import generate_password_hash, check_password_hash
 from prometheus_client import Counter, Gauge, generate_latest, CONTENT_TYPE_LATEST
 from db import get_db_connection, init_db, seed_db
+from mqtt_bus import ride_request_hub, ride_request_mqtt
 
 app = Flask(__name__)
 CORS(app)
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
+ride_request_mqtt.start()
 
 # ── Prometheus metrics ───────────────────────────────────────────────────────
 RIDE_REQUESTS  = Counter("bodaboda_ride_requests_total",      "Total ride requests submitted")
@@ -129,6 +134,9 @@ def create_trip():
     conn = get_db_connection()
     try:
         cur   = conn.cursor()
+        customer = cur.execute("SELECT id, name FROM users WHERE id=?", (customer_id,)).fetchone()
+        if not customer:
+            return jsonify({"error": "Customer not found"}), 404
         rider = cur.execute(
             "SELECT r.id, r.user_id FROM riders r WHERE r.status='available' ORDER BY RANDOM() LIMIT 1"
         ).fetchone()
@@ -141,9 +149,30 @@ def create_trip():
         )
         trip_id = cur.lastrowid
         cur.execute("UPDATE riders SET status='busy' WHERE id=?", (rider["id"],))
-        rider_user = cur.execute("SELECT name FROM users WHERE id=?", (rider["user_id"],)).fetchone()
+        rider_user = cur.execute(
+            "SELECT u.name FROM users u WHERE u.id=?",
+            (rider["user_id"],),
+        ).fetchone()
+        event = {
+            "event_type": "ride.requested",
+            "topic": "rides/requests",
+            "trip_id": trip_id,
+            "customer_id": customer["id"],
+            "customer_name": customer["name"],
+            "rider_id": rider["id"],
+            "rider_name": rider_user["name"] if rider_user else "Unknown",
+            "pickup": pickup,
+            "destination": destination,
+            "fare": fare,
+            "status": "pending",
+            "timestamp": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
+        }
         conn.commit()
         RIDE_REQUESTS.inc()
+        if not ride_request_mqtt.publish_ride_request(event):
+            ride_request_hub.publish(event)
+        else:
+            logging.info("Published ride request %s to MQTT", trip_id)
         return jsonify({
             "trip_id": trip_id,
             "rider":   rider_user["name"] if rider_user else "Unknown",
@@ -156,6 +185,37 @@ def create_trip():
         return jsonify({"error": "Internal server error"}), 500
     finally:
         conn.close()
+
+
+@app.route("/api/rides/stream", methods=["GET"])
+def ride_stream():
+    rider_id = request.args.get("rider_id")
+    if not rider_id:
+        return jsonify({"error": "rider_id is required"}), 400
+
+    inbox = ride_request_hub.subscribe(lambda event: str(event.get("rider_id")) == str(rider_id))
+
+    def event_stream():
+        try:
+            yield ": connected\n\n"
+            while True:
+                try:
+                    event = inbox.get(timeout=15)
+                    yield f"event: ride-request\ndata: {json.dumps(event)}\n\n"
+                except queue.Empty:
+                    yield ": ping\n\n"
+        finally:
+            ride_request_hub.unsubscribe(inbox)
+
+    return Response(
+        stream_with_context(event_stream()),
+        mimetype="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no",
+        },
+    )
 
 
 @app.route("/api/trips", methods=["GET"])

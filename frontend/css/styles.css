@@ -455,6 +455,21 @@ tbody tr:hover { background: var(--gray-1); }
 .rider-card h4 { font-size: .95rem; font-weight: 700; margin-bottom: 4px; }
 .rider-card p  { font-size: .8rem; color: var(--text-muted); margin-bottom: 6px; }
 
+.live-requests {
+  display: grid;
+  gap: 12px;
+}
+.live-request-card {
+  background: linear-gradient(180deg, rgba(255, 122, 0, 0.06), rgba(255, 122, 0, 0.02));
+  border: 1px solid rgba(255, 122, 0, 0.12);
+  border-radius: var(--radius-lg);
+  padding: 16px 18px;
+  box-shadow: var(--shadow);
+}
+.live-request-card strong {
+  color: var(--dark);
+}
+
 /* ── Request form page ───────────────────────────── */
 .request-layout {
   display: grid;
