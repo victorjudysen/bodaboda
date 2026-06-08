@@ -64,6 +64,13 @@ jobs:
         with:
           python-version: "3.11"
 
+      - name: Create backend env file
+        run: |
+          cat > backend/.env <<'EOF'
+          DB_PATH=/app/data/bodaboda.db
+          FLASK_DEBUG=false
+          EOF
+
       - name: Start MQTT-backed stack
         run: |
           docker compose up -d --build mqtt backend
