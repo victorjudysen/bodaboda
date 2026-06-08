@@ -43,15 +43,41 @@ jobs:
 
       - name: Simulate staging health check
         run: |
+          docker network create staging-net
+
+          docker run -d --name staging-mqtt \
+            --network staging-net \
+            -v "${{ github.workspace }}/monitoring/mosquitto/mosquitto.conf:/mosquitto/config/mosquitto.conf:ro" \
+            eclipse-mosquitto:2
+
           docker run -d --name staging-test \
+            --network staging-net \
             -e DB_PATH=/tmp/test.db \
+            -e MQTT_ENABLED=true \
+            -e MQTT_HOST=staging-mqtt \
+            -e MQTT_PORT=1883 \
             -p 5000:5000 \
             ${{ secrets.DOCKERHUB_USERNAME }}/bodaboda-backend:staging
-          sleep 5
+
+          sleep 8
           curl --fail http://localhost:5000/api/health || exit 1
+
+          for i in $(seq 1 20); do
+            if docker logs staging-test 2>&1 | grep -q "MQTT subscribed to rides/requests"; then
+              echo "Staging backend connected to MQTT broker"
+              break
+            fi
+            sleep 2
+          done
+
+          docker logs staging-test 2>&1 | grep -q "MQTT subscribed to rides/requests"
           echo "Staging health check passed"
-          docker stop staging-test
-          docker rm staging-test
+
+      - name: Cleanup staging test containers
+        if: always()
+        run: |
+          docker rm -f staging-test staging-mqtt || true
+          docker network rm staging-net || true
 
   # ── APPROVAL GATE ──────────────────────────────────────────────────────────
   # GitHub Environment "production" must have a required reviewer configured

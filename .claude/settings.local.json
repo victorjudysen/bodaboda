@@ -1,0 +1,22 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git add *)",
+      "Bash(git rm *)",
+      "Bash(git commit -m ' *)",
+      "Bash(git push *)",
+      "Bash(.venv/Scripts/python.exe -m pytest tests/ -v --tb=short)",
+      "Bash(.venv/Scripts/pip.exe install *)",
+      "Bash(gh run *)",
+      "Bash(where gh *)",
+      "Bash(gh --version)",
+      "Bash(git commit *)",
+      "Bash(ssh-keygen -t ed25519 -C \"bodaboda-cicd\" -f /tmp/bodaboda_deploy -N \"\")",
+      "Read(//tmp/**)",
+      "Bash(sshpass -p 'Phenomena10' ssh -o StrictHostKeyChecking=no root@173.249.27.221 \"mkdir -p ~/.ssh && echo 'ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIO64stZXtrQY8LxuNOKGeNM968BU6lnZvGCH+qHEDLFv bodaboda-cicd' >> ~/.ssh/authorized_keys && chmod 700 ~/.ssh && chmod 600 ~/.ssh/authorized_keys && echo 'Key added successfully'\")",
+      "Bash(apt-get install *)",
+      "Bash(python3 -c ' *)",
+      "Bash(pip install *)"
+    ]
+  }
+}

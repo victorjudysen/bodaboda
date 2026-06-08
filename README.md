@@ -25,7 +25,7 @@ docker compose up --build
 | Service | URL |
 |---|---|
 | App | http://localhost |
-| Backend API | http://localhost:5000 |
+| Backend API | http://localhost:5001 |
 | Grafana | http://localhost:3000 (admin/admin) |
 | Prometheus | http://localhost:9090 |
 | MQTT TCP | `localhost:1883` |
