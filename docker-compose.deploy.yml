@@ -1,0 +1,92 @@
+services:
+  mqtt:
+    image: eclipse-mosquitto:2
+    container_name: bodaboda-mqtt-release
+    restart: unless-stopped
+    volumes:
+      - ./monitoring/mosquitto/mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
+      - mosquitto_data:/mosquitto/data
+      - mosquitto_log:/mosquitto/log
+    ports:
+      - "1883:1883"
+      - "9001:9001"
+    networks:
+      - bodaboda-release-net
+
+  backend:
+    image: ${DOCKERHUB_USERNAME}/bodaboda-backend:${IMAGE_TAG:-latest}
+    container_name: bodaboda-backend-release
+    restart: unless-stopped
+    environment:
+      DB_PATH: /app/data/bodaboda.db
+      MQTT_ENABLED: "true"
+      MQTT_HOST: mqtt
+      MQTT_PORT: "1883"
+      MQTT_TOPIC: rides/requests
+    volumes:
+      - db_data:/app/data
+    networks:
+      - bodaboda-release-net
+    ports:
+      - "5001:5000"
+    depends_on:
+      - mqtt
+
+  frontend:
+    image: ${DOCKERHUB_USERNAME}/bodaboda-frontend:${IMAGE_TAG:-latest}
+    container_name: bodaboda-frontend-release
+    restart: unless-stopped
+    depends_on:
+      - backend
+    networks:
+      - bodaboda-release-net
+    ports:
+      - "80:80"
+
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: bodaboda-prometheus-release
+    restart: unless-stopped
+    volumes:
+      - ./monitoring/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.path=/prometheus"
+      - "--storage.tsdb.retention.time=15d"
+      - "--web.enable-lifecycle"
+    ports:
+      - "9090:9090"
+    depends_on:
+      - backend
+    networks:
+      - bodaboda-release-net
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: bodaboda-grafana-release
+    restart: unless-stopped
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_USERS_ALLOW_SIGN_UP=false
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
+    ports:
+      - "3000:3000"
+    depends_on:
+      - prometheus
+    networks:
+      - bodaboda-release-net
+
+volumes:
+  db_data:
+  prometheus_data:
+  grafana_data:
+  mosquitto_data:
+  mosquitto_log:
+
+networks:
+  bodaboda-release-net:
+    driver: bridge

@@ -1,0 +1,128 @@
+name: CD — Third-Party Deployment Integration
+
+on:
+  workflow_run:
+    workflows: ["CI — Build & Test"]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: "Release tag to publish (for example: v1.0 or v2.0)"
+        required: false
+        default: v1.0
+
+env:
+  DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+
+jobs:
+  publish:
+    name: Publish to Docker Hub
+    runs-on: ubuntu-latest
+    if: ${{ github.event_name == 'workflow_dispatch' || (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success') }}
+    outputs:
+      release_tag: ${{ steps.release-meta.outputs.release_tag }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Resolve release tag
+        id: release-meta
+        run: |
+          release_tag="${{ github.event.inputs.release_tag }}"
+          if [ -z "$release_tag" ]; then
+            release_tag="v1.0"
+          fi
+          echo "release_tag=$release_tag" >> "$GITHUB_OUTPUT"
+
+      - name: Build and push backend image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./backend
+          push: true
+          tags: |
+            ${{ secrets.DOCKERHUB_USERNAME }}/bodaboda-backend:latest
+            ${{ secrets.DOCKERHUB_USERNAME }}/bodaboda-backend:${{ steps.release-meta.outputs.release_tag }}
+            ${{ secrets.DOCKERHUB_USERNAME }}/bodaboda-backend:${{ github.sha }}
+
+      - name: Build and push frontend image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./frontend
+          push: true
+          tags: |
+            ${{ secrets.DOCKERHUB_USERNAME }}/bodaboda-frontend:latest
+            ${{ secrets.DOCKERHUB_USERNAME }}/bodaboda-frontend:${{ steps.release-meta.outputs.release_tag }}
+            ${{ secrets.DOCKERHUB_USERNAME }}/bodaboda-frontend:${{ github.sha }}
+
+      - name: Verify published images
+        run: |
+          docker pull ${{ secrets.DOCKERHUB_USERNAME }}/bodaboda-backend:${{ steps.release-meta.outputs.release_tag }}
+          docker pull ${{ secrets.DOCKERHUB_USERNAME }}/bodaboda-frontend:${{ steps.release-meta.outputs.release_tag }}
+          echo "Docker Hub release verified for ${{ steps.release-meta.outputs.release_tag }}"
+
+  deploy:
+    name: Deploy From Docker Hub
+    runs-on: ubuntu-latest
+    needs: publish
+    if: ${{ needs.publish.result == 'success' }}
+    environment: staging
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Start deployed stack from Docker Hub
+        run: |
+          IMAGE_TAG="${{ needs.publish.outputs.release_tag }}" \
+          DOCKERHUB_USERNAME="${{ secrets.DOCKERHUB_USERNAME }}" \
+          docker compose -f docker-compose.deploy.yml up -d mqtt backend frontend prometheus grafana
+
+      - name: Wait for backend health
+        run: |
+          for i in $(seq 1 30); do
+            if curl --fail http://localhost:5001/api/health >/dev/null 2>&1; then
+              echo "Backend is healthy"
+              exit 0
+            fi
+            sleep 2
+          done
+          docker compose -f docker-compose.deploy.yml logs backend
+          exit 1
+
+      - name: Confirm MQTT deployment
+        run: |
+          for i in $(seq 1 30); do
+            if docker compose -f docker-compose.deploy.yml logs backend 2>&1 | grep -q "MQTT subscribed to rides/requests"; then
+              echo "Backend connected to external deployment stack"
+              exit 0
+            fi
+            sleep 2
+          done
+          docker compose -f docker-compose.deploy.yml logs backend
+          exit 1
+
+      - name: Run MQTT smoke test against deployed stack
+        run: |
+          BASE_URL=http://localhost:5001 python scripts/mqtt_smoke_test.py
+
+      - name: Cleanup
+        if: always()
+        run: |
+          docker compose -f docker-compose.deploy.yml down -v --remove-orphans

@@ -39,6 +39,16 @@ This project implements Assignment 2, Option A:
 - The backend also subscribes to that topic and forwards matching events to the rider dashboard in real time
 - If MQTT is unavailable, the trip still gets saved and the backend logs the publish failure
 
+## Third-Party Deployment
+
+Assignment 3 extends the pipeline with Docker Hub based release and deployment flow:
+
+- The backend and frontend images are built and pushed to Docker Hub from the release workflow
+- Images are tagged as `latest`, a release tag such as `v1.0` or `v2.0`, and the commit SHA
+- The deployment workflow pulls the published images from Docker Hub and starts the app from `docker-compose.deploy.yml`
+- MQTT remains active in the deployed stack, so ride requests still broadcast in real time
+- You can trigger a new release tag from GitHub Actions with `workflow_dispatch` and a tag like `v2.0`
+
 ## Live Demo Steps
 
 1. Start the stack with `docker compose up --build`
