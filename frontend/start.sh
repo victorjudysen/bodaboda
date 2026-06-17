@@ -1,12 +1,18 @@
 #!/bin/sh
-# Ensure BACKEND_URL always has a value before nginx processes the config.
-# Render sets it to empty string when left blank; this catches that case.
+set -e
+
+# Always fall back to the Docker Compose internal hostname if BACKEND_URL
+# is empty (Render sets it to empty string when left blank).
 BACKEND_URL="${BACKEND_URL:-http://backend:5000}"
 export BACKEND_URL
 
-envsubst '${BACKEND_URL}' \
-  < /etc/nginx/nginx.conf.template \
+echo "[BodaBoda] BACKEND_URL=${BACKEND_URL}"
+
+# Use sed — guaranteed available in nginx:alpine (busybox).
+# Replaces the literal token BACKEND_URL_PLACEHOLDER with the real value.
+sed "s|BACKEND_URL_PLACEHOLDER|${BACKEND_URL}|g" \
+  /etc/nginx/nginx.conf.template \
   > /etc/nginx/conf.d/default.conf
 
-echo "Starting nginx with BACKEND_URL=${BACKEND_URL}"
+echo "[BodaBoda] nginx config written — starting nginx"
 exec nginx -g 'daemon off;'

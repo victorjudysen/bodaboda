@@ -5,12 +5,11 @@ server {
     root /usr/share/nginx/html;
     index index.html;
 
-    # Proxy all /api/* calls to the Flask backend.
-    # BACKEND_URL is substituted at container startup via envsubst.
-    # Local Docker Compose default: http://backend:5000
-    # Render production:           https://bodaboda-backend.onrender.com
+    # BACKEND_URL_PLACEHOLDER is replaced at container startup by start.sh.
+    # Local Docker Compose: http://backend:5000
+    # Render production:    https://bodaboda-backend.onrender.com
     location /api/ {
-        proxy_pass         ${BACKEND_URL}/api/;
+        proxy_pass         BACKEND_URL_PLACEHOLDER/api/;
         proxy_http_version 1.1;
         proxy_set_header   Host              $host;
         proxy_set_header   X-Real-IP         $remote_addr;
