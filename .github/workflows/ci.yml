@@ -8,7 +8,7 @@ on:
 
 jobs:
   test:
-    name: Run Tests
+    name: Run Tests + Coverage
     runs-on: ubuntu-latest
 
     steps:
@@ -25,9 +25,36 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r backend/requirements.txt
 
-      - name: Run pytest
+      # ── Improvement #1: Test Coverage Reports ────────────────────────────
+      - name: Run pytest with coverage
         run: |
-          pytest tests/ -v --tb=short
+          pytest tests/ -v --tb=short \
+            --cov=backend \
+            --cov-report=term-missing \
+            --cov-report=xml:coverage.xml \
+            --cov-report=html:coverage-html \
+            --cov-fail-under=60
+
+      - name: Upload coverage XML report
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report-xml
+          path: coverage.xml
+
+      - name: Upload coverage HTML report
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report-html
+          path: coverage-html/
+
+      - name: Print coverage summary
+        run: |
+          echo "========================================"
+          echo "  Test Coverage Summary"
+          echo "========================================"
+          python -m coverage report --rcfile=.coveragerc 2>/dev/null || \
+          python -m coverage report 2>/dev/null || \
+          echo "Coverage XML saved as artifact above"
 
   build-docker:
     name: Build Docker Image
@@ -41,6 +68,10 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
+      - name: Record build start time
+        id: build-start
+        run: echo "start=$(date +%s)" >> "$GITHUB_OUTPUT"
+
       - name: Build backend image (no push)
         uses: docker/build-push-action@v5
         with:
@@ -49,6 +80,25 @@ jobs:
           tags: |
             bodaboda-backend:latest
             bodaboda-backend:${{ github.sha }}
+
+      - name: Build frontend image (no push)
+        uses: docker/build-push-action@v5
+        with:
+          context: ./frontend
+          push: false
+          tags: |
+            bodaboda-frontend:latest
+            bodaboda-frontend:${{ github.sha }}
+
+      - name: Report build duration
+        run: |
+          END=$(date +%s)
+          START=${{ steps.build-start.outputs.start }}
+          DURATION=$((END - START))
+          echo "========================================"
+          echo "  Docker Build Duration: ${DURATION}s"
+          echo "  Commit: ${{ github.sha }}"
+          echo "========================================"
 
   mqtt-smoke:
     name: MQTT Integration Smoke Test
@@ -89,6 +139,7 @@ jobs:
 
       - name: Run publish/receive smoke test
         run: |
+          pip install -r backend/requirements.txt
           BASE_URL=http://localhost:5001 python scripts/mqtt_smoke_test.py
 
       - name: Confirm backend published the trip to MQTT

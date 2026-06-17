@@ -79,15 +79,36 @@ jobs:
           docker rm -f staging-test staging-mqtt || true
           docker network rm staging-net || true
 
+      # ── Improvement #2: Failure Notification ──────────────────────────────
+      - name: Notify on staging failure
+        if: failure()
+        run: |
+          echo "::error::Staging deployment FAILED for commit ${{ github.sha }}"
+          echo "::error::Branch: ${{ github.ref_name }}"
+          echo "::error::Run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          # Optional Slack notification (set SLACK_WEBHOOK_URL secret to enable):
+          if [ -n "${{ secrets.SLACK_WEBHOOK_URL }}" ]; then
+            curl -s -X POST "${{ secrets.SLACK_WEBHOOK_URL }}" \
+              -H "Content-Type: application/json" \
+              -d "{
+                \"text\": \":red_circle: *BodaBoda CD — Staging FAILED*\",
+                \"attachments\": [{
+                  \"color\": \"danger\",
+                  \"fields\": [
+                    {\"title\": \"Commit\", \"value\": \"${{ github.sha }}\", \"short\": true},
+                    {\"title\": \"Branch\", \"value\": \"${{ github.ref_name }}\", \"short\": true},
+                    {\"title\": \"Run\", \"value\": \"${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}\"}
+                  ]
+                }]
+              }"
+          fi
+
   # ── APPROVAL GATE ──────────────────────────────────────────────────────────
-  # GitHub Environment "production" must have a required reviewer configured
-  # in Settings → Environments → production → Required reviewers.
-  # The workflow will pause here and wait for a Release Manager to approve.
   approve-production:
     name: Approval Gate (Release Manager)
     runs-on: ubuntu-latest
     needs: deploy-staging
-    environment: production   # <-- protected environment — triggers manual approval
+    environment: production
 
     steps:
       - name: Approval received
@@ -119,13 +140,56 @@ jobs:
           push: true
           tags: |
             ${{ secrets.DOCKERHUB_USERNAME }}/bodaboda-backend:latest
-            ${{ secrets.DOCKERHUB_USERNAME }}/bodaboda-backend:v1
+            ${{ secrets.DOCKERHUB_USERNAME }}/bodaboda-backend:v${{ github.run_number }}
             ${{ secrets.DOCKERHUB_USERNAME }}/bodaboda-backend:${{ github.sha }}
+
+      - name: Save current version for rollback reference
+        run: |
+          echo "v${{ github.run_number }}" > .last-deployed-version
+          echo "Deployed version: v${{ github.run_number }} (run #${{ github.run_number }})"
+          echo "SHA: ${{ github.sha }}"
 
       - name: Confirm production deployment
         run: |
-          echo "Production image pushed:"
-          echo "  ${{ secrets.DOCKERHUB_USERNAME }}/bodaboda-backend:latest"
-          echo "  ${{ secrets.DOCKERHUB_USERNAME }}/bodaboda-backend:v1"
-          echo "  ${{ secrets.DOCKERHUB_USERNAME }}/bodaboda-backend:${{ github.sha }}"
-          echo "System is live in production."
+          echo "=============================================="
+          echo "  Production Deployment Complete"
+          echo "=============================================="
+          echo "  Image: ${{ secrets.DOCKERHUB_USERNAME }}/bodaboda-backend"
+          echo "  Tags : latest  v${{ github.run_number }}  ${{ github.sha }}"
+          echo "  To rollback, run the 'Rollback' workflow"
+          echo "  with tag: v${{ github.run_number }}"
+          echo "=============================================="
+
+      # ── Improvement #2: Success Notification ──────────────────────────────
+      - name: Notify on production success
+        if: success()
+        run: |
+          echo "::notice::Production deployed successfully — v${{ github.run_number }}"
+          if [ -n "${{ secrets.SLACK_WEBHOOK_URL }}" ]; then
+            curl -s -X POST "${{ secrets.SLACK_WEBHOOK_URL }}" \
+              -H "Content-Type: application/json" \
+              -d "{
+                \"text\": \":white_check_mark: *BodaBoda CD — Production deployed v${{ github.run_number }}*\",
+                \"attachments\": [{
+                  \"color\": \"good\",
+                  \"fields\": [
+                    {\"title\": \"Version\", \"value\": \"v${{ github.run_number }}\", \"short\": true},
+                    {\"title\": \"SHA\", \"value\": \"${{ github.sha }}\", \"short\": true}
+                  ]
+                }]
+              }"
+          fi
+
+      - name: Notify on production failure
+        if: failure()
+        run: |
+          echo "::error::Production deployment FAILED — initiating rollback recommendation"
+          echo "::error::Run the Rollback workflow to revert to the previous version"
+          if [ -n "${{ secrets.SLACK_WEBHOOK_URL }}" ]; then
+            curl -s -X POST "${{ secrets.SLACK_WEBHOOK_URL }}" \
+              -H "Content-Type: application/json" \
+              -d "{
+                \"text\": \":rotating_light: *BodaBoda CD — Production FAILED. Run Rollback workflow.*\",
+                \"attachments\": [{\"color\": \"danger\"}]
+              }"
+          fi

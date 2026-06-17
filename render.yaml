@@ -1,0 +1,43 @@
+# Render.com Blueprint — BodaBoda Digital
+# Connects to your GitHub repo and auto-deploys both services.
+#
+# HOW TO USE:
+# 1. Go to https://render.com and sign in (free account, no card required).
+# 2. Click "New" → "Blueprint" → connect this GitHub repository.
+# 3. Render reads this file and creates both services automatically.
+# 4. After the backend deploys, copy its public URL
+#    (e.g. https://bodaboda-backend.onrender.com).
+# 5. In the Render dashboard → bodaboda-frontend → Environment,
+#    set BACKEND_URL = https://bodaboda-backend.onrender.com
+#    then click "Manual Deploy" to apply.
+# 6. Share the frontend URL with your instructor.
+
+services:
+  # ── Backend (Flask API) ───────────────────────────────────────────────────
+  - type: web
+    name: bodaboda-backend
+    runtime: docker
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: ./backend
+    plan: free
+    healthCheckPath: /api/health
+    envVars:
+      - key: DB_PATH
+        value: /tmp/bodaboda.db   # ephemeral storage on free tier
+      - key: MQTT_ENABLED
+        value: "false"            # no MQTT broker on Render free tier
+      - key: FLASK_DEBUG
+        value: "false"
+
+  # ── Frontend (Nginx static + API proxy) ──────────────────────────────────
+  - type: web
+    name: bodaboda-frontend
+    runtime: docker
+    dockerfilePath: ./frontend/Dockerfile
+    dockerContext: ./frontend
+    plan: free
+    envVars:
+      # Set this to your backend's Render URL after first deploy.
+      # Example: https://bodaboda-backend.onrender.com
+      - key: BACKEND_URL
+        sync: false

@@ -1,0 +1,119 @@
+name: Rollback — Revert to Previous Version
+
+# ── Improvement #3: Rollback Mechanism ────────────────────────────────────────
+# Manually triggered to redeploy any previously pushed Docker image tag.
+# Use when a bad production deployment is detected.
+#
+# Example: if v45 is broken, run this workflow with rollback_tag = v44
+
+on:
+  workflow_dispatch:
+    inputs:
+      rollback_tag:
+        description: "Docker image tag to roll back to (e.g. v44, v1.0, or a git SHA)"
+        required: true
+        default: "latest"
+      reason:
+        description: "Reason for rollback (for audit trail)"
+        required: false
+        default: "Manual rollback"
+
+jobs:
+  rollback:
+    name: Rollback Production
+    runs-on: ubuntu-latest
+    environment: production   # requires approval from Release Manager
+
+    steps:
+      - name: Log rollback intent
+        run: |
+          echo "=============================================="
+          echo "  ROLLBACK INITIATED"
+          echo "=============================================="
+          echo "  Requested by : ${{ github.actor }}"
+          echo "  Target tag   : ${{ github.event.inputs.rollback_tag }}"
+          echo "  Reason       : ${{ github.event.inputs.reason }}"
+          echo "  Timestamp    : $(date -u)"
+          echo "=============================================="
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Verify rollback image exists on Docker Hub
+        run: |
+          TAG="${{ github.event.inputs.rollback_tag }}"
+          IMAGE="${{ secrets.DOCKERHUB_USERNAME }}/bodaboda-backend:$TAG"
+          echo "Pulling $IMAGE to verify it exists..."
+          docker pull "$IMAGE" || {
+            echo "::error::Image $IMAGE not found on Docker Hub."
+            echo "::error::Available tags can be checked at hub.docker.com/r/${{ secrets.DOCKERHUB_USERNAME }}/bodaboda-backend/tags"
+            exit 1
+          }
+          echo "Rollback image verified: $IMAGE"
+
+      - name: Re-tag rollback image as latest
+        run: |
+          TAG="${{ github.event.inputs.rollback_tag }}"
+          SRC="${{ secrets.DOCKERHUB_USERNAME }}/bodaboda-backend:$TAG"
+          DEST="${{ secrets.DOCKERHUB_USERNAME }}/bodaboda-backend:latest"
+
+          docker tag "$SRC" "$DEST"
+          docker push "$DEST"
+          echo "Re-tagged $SRC → $DEST"
+
+      - name: Verify reverted production image
+        run: |
+          docker pull ${{ secrets.DOCKERHUB_USERNAME }}/bodaboda-backend:latest
+
+          # Spin up a quick health check against the rolled-back image
+          docker run -d --name rollback-test \
+            -e DB_PATH=/tmp/test.db \
+            -e MQTT_ENABLED=false \
+            -p 5000:5000 \
+            ${{ secrets.DOCKERHUB_USERNAME }}/bodaboda-backend:latest
+
+          sleep 6
+          curl --fail http://localhost:5000/api/health || {
+            docker logs rollback-test
+            docker rm -f rollback-test
+            exit 1
+          }
+          docker rm -f rollback-test
+          echo "Rollback health check passed."
+
+      - name: Confirm rollback complete
+        run: |
+          echo "=============================================="
+          echo "  ROLLBACK COMPLETE"
+          echo "=============================================="
+          echo "  Reverted to : ${{ github.event.inputs.rollback_tag }}"
+          echo "  Latest tag  : now points to ${{ github.event.inputs.rollback_tag }}"
+          echo "  Next step   : your hosting platform will pull"
+          echo "                the updated 'latest' tag on next deploy"
+          echo "=============================================="
+
+      - name: Notify rollback on Slack (if configured)
+        if: always()
+        run: |
+          STATUS="${{ job.status }}"
+          COLOR="good"
+          ICON=":arrows_counterclockwise:"
+          if [ "$STATUS" != "success" ]; then COLOR="danger"; ICON=":x:"; fi
+          if [ -n "${{ secrets.SLACK_WEBHOOK_URL }}" ]; then
+            curl -s -X POST "${{ secrets.SLACK_WEBHOOK_URL }}" \
+              -H "Content-Type: application/json" \
+              -d "{
+                \"text\": \"$ICON *BodaBoda ROLLBACK — $STATUS*\",
+                \"attachments\": [{
+                  \"color\": \"$COLOR\",
+                  \"fields\": [
+                    {\"title\": \"Rolled back to\", \"value\": \"${{ github.event.inputs.rollback_tag }}\", \"short\": true},
+                    {\"title\": \"Triggered by\",  \"value\": \"${{ github.actor }}\", \"short\": true},
+                    {\"title\": \"Reason\", \"value\": \"${{ github.event.inputs.reason }}\"}
+                  ]
+                }]
+              }"
+          fi

@@ -1,0 +1,75 @@
+name: CD — Deploy to Render (External Hosting)
+
+# Triggered automatically after CI passes on main, or manually.
+on:
+  workflow_run:
+    workflows: ["CI — Build & Test"]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  deploy-to-render:
+    name: Trigger Render Deployment
+    runs-on: ubuntu-latest
+    if: >
+      github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'workflow_run' &&
+       github.event.workflow_run.conclusion == 'success')
+
+    steps:
+      - name: Deploy backend to Render
+        run: |
+          echo "Triggering Render backend deployment..."
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
+            -X POST "${{ secrets.RENDER_DEPLOY_HOOK_BACKEND }}")
+          if [ "$STATUS" -ge 200 ] && [ "$STATUS" -lt 300 ]; then
+            echo "Backend deploy triggered (HTTP $STATUS)"
+          else
+            echo "Backend deploy hook returned HTTP $STATUS — check RENDER_DEPLOY_HOOK_BACKEND secret"
+            exit 1
+          fi
+
+      - name: Deploy frontend to Render
+        run: |
+          echo "Triggering Render frontend deployment..."
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
+            -X POST "${{ secrets.RENDER_DEPLOY_HOOK_FRONTEND }}")
+          if [ "$STATUS" -ge 200 ] && [ "$STATUS" -lt 300 ]; then
+            echo "Frontend deploy triggered (HTTP $STATUS)"
+          else
+            echo "Frontend deploy hook returned HTTP $STATUS — check RENDER_DEPLOY_HOOK_FRONTEND secret"
+            exit 1
+          fi
+
+      - name: Wait and verify backend health
+        run: |
+          echo "Waiting 90s for Render to spin up the backend..."
+          sleep 90
+          BACKEND_URL="${{ secrets.RENDER_BACKEND_URL }}"
+          if [ -z "$BACKEND_URL" ]; then
+            echo "RENDER_BACKEND_URL secret not set — skipping health check"
+            exit 0
+          fi
+          for i in $(seq 1 10); do
+            STATUS=$(curl -s -o /dev/null -w "%{http_code}" "$BACKEND_URL/api/health")
+            if [ "$STATUS" = "200" ]; then
+              echo "Backend is healthy at $BACKEND_URL"
+              exit 0
+            fi
+            echo "Attempt $i: HTTP $STATUS — retrying in 15s..."
+            sleep 15
+          done
+          echo "Backend did not become healthy within timeout"
+          exit 1
+
+      - name: Print live URLs
+        if: always()
+        run: |
+          echo "================================================"
+          echo "  BodaBoda Digital — Live on Render"
+          echo "================================================"
+          echo "  Frontend : ${{ secrets.RENDER_FRONTEND_URL }}"
+          echo "  Backend  : ${{ secrets.RENDER_BACKEND_URL }}"
+          echo "================================================"
+          echo "Share the frontend URL with your instructor."

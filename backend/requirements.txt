@@ -5,3 +5,4 @@ werkzeug
 prometheus-client
 paho-mqtt
 pytest
+pytest-cov

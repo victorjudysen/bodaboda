@@ -36,6 +36,8 @@ services:
     image: ${DOCKERHUB_USERNAME}/bodaboda-frontend:${IMAGE_TAG:-latest}
     container_name: bodaboda-frontend-release
     restart: unless-stopped
+    environment:
+      BACKEND_URL: http://backend:5000
     depends_on:
       - backend
     networks:
