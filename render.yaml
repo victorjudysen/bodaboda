@@ -37,7 +37,9 @@ services:
     dockerContext: ./frontend
     plan: free
     envVars:
-      # Set this to your backend's Render URL after first deploy.
-      # Example: https://bodaboda-backend.onrender.com
+      # After your first deploy, update this to the actual backend URL:
+      # Dashboard → bodaboda-frontend → Environment → BACKEND_URL → Save → Redeploy
+      # The startup script (start.sh) falls back to http://backend:5000 if empty,
+      # so the frontend will start even before you set this — just the proxy won't work.
       - key: BACKEND_URL
-        sync: false
+        value: http://backend:5000

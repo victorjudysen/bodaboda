@@ -1,16 +1,21 @@
 FROM nginx:alpine
 
-# The official nginx:alpine image processes files under /etc/nginx/templates/
-# with envsubst at startup, writing results to /etc/nginx/conf.d/.
-# This lets BACKEND_URL be injected at runtime for both local Docker Compose
-# and cloud deployments (Render.com).
-COPY nginx.conf.template /etc/nginx/templates/default.conf.template
+# Use a custom startup script so BACKEND_URL always gets a safe default
+# even when the container platform (e.g. Render) injects an empty string.
+COPY start.sh /start.sh
+RUN chmod +x /start.sh
 
-COPY index.html login.html register.html request.html dashboard.html rider-dashboard.html /usr/share/nginx/html/
+# Template is processed by start.sh at runtime, not by the nginx entrypoint.
+COPY nginx.conf.template /etc/nginx/nginx.conf.template
+
+COPY index.html login.html register.html request.html dashboard.html rider-dashboard.html \
+     /usr/share/nginx/html/
 COPY css/ /usr/share/nginx/html/css/
 COPY js/  /usr/share/nginx/html/js/
 
-# Default points to Docker Compose internal hostname; overridden on Render.
+# Default for local Docker Compose; overridden by BACKEND_URL env var on Render.
 ENV BACKEND_URL=http://backend:5000
 
 EXPOSE 80
+
+CMD ["/start.sh"]
