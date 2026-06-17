@@ -1,0 +1,93 @@
+<svg viewBox="0 0 920 490" xmlns="http://www.w3.org/2000/svg" role="img">
+  <title>Fishbone Diagram — Root Cause Analysis: Slow and Unreliable CI/CD Deployments</title>
+  <desc>Ishikawa fishbone diagram identifying root causes across Process, Tools, Environment, People, Code, and Testing categories</desc>
+
+  <rect width="920" height="490" fill="#fafafa" stroke="#d8d8d8" stroke-width="1"/>
+
+  <!-- Title -->
+  <text x="460" y="26" text-anchor="middle" font-family="Arial, sans-serif" font-size="13" font-weight="700" fill="#1a1a1a">Fishbone Diagram — Root Cause Analysis</text>
+  <text x="460" y="43" text-anchor="middle" font-family="Arial, sans-serif" font-size="10" fill="#555">Slow &amp; Unreliable CI/CD Deployments · BodaBoda Digital · CS 421 Assignment 4 · Task 3</text>
+
+  <!-- SPINE -->
+  <line x1="58" y1="255" x2="782" y2="255" stroke="#1a1a1a" stroke-width="2.5"/>
+  <polygon points="782,255 767,248 767,262" fill="#1a1a1a"/>
+
+  <!-- EFFECT BOX -->
+  <rect x="784" y="228" width="126" height="54" rx="3" fill="#1a1a1a"/>
+  <text x="847" y="250" text-anchor="middle" font-family="Arial,sans-serif" font-size="10.5" font-weight="700" fill="white">Slow / Failed</text>
+  <text x="847" y="266" text-anchor="middle" font-family="Arial,sans-serif" font-size="10.5" font-weight="700" fill="white">Deployments</text>
+
+  <!-- UPPER BONES -->
+
+  <!-- PROCESS spine@(170,255) tip(82,115) -->
+  <line x1="170" y1="255" x2="82" y2="115" stroke="#1a1a1a" stroke-width="1.8"/>
+  <circle cx="170" cy="255" r="3.5" fill="#1a1a1a"/>
+  <text x="55" y="108" font-family="Arial,sans-serif" font-size="11" font-weight="700" fill="#1a1a1a">PROCESS</text>
+  <line x1="139" y1="206" x2="179" y2="184" stroke="#1a1a1a" stroke-width="1"/>
+  <circle cx="139" cy="206" r="2" fill="#555"/>
+  <text x="182" y="182" font-family="Arial,sans-serif" font-size="9" fill="#333">No Docker layer cache</text>
+  <line x1="113" y1="164" x2="153" y2="142" stroke="#1a1a1a" stroke-width="1"/>
+  <circle cx="113" cy="164" r="2" fill="#555"/>
+  <text x="156" y="140" font-family="Arial,sans-serif" font-size="9" fill="#333">Manual approval delays</text>
+
+  <!-- TOOLS spine@(375,255) tip(287,115) -->
+  <line x1="375" y1="255" x2="287" y2="115" stroke="#1a1a1a" stroke-width="1.8"/>
+  <circle cx="375" cy="255" r="3.5" fill="#1a1a1a"/>
+  <text x="262" y="108" font-family="Arial,sans-serif" font-size="11" font-weight="700" fill="#1a1a1a">TOOLS</text>
+  <line x1="344" y1="206" x2="384" y2="184" stroke="#1a1a1a" stroke-width="1"/>
+  <circle cx="344" cy="206" r="2" fill="#555"/>
+  <text x="387" y="182" font-family="Arial,sans-serif" font-size="9" fill="#333">No build parallelism</text>
+  <line x1="318" y1="164" x2="358" y2="142" stroke="#1a1a1a" stroke-width="1"/>
+  <circle cx="318" cy="164" r="2" fill="#555"/>
+  <text x="361" y="140" font-family="Arial,sans-serif" font-size="9" fill="#333">Large Docker image size</text>
+
+  <!-- ENVIRONMENT spine@(580,255) tip(492,115) -->
+  <line x1="580" y1="255" x2="492" y2="115" stroke="#1a1a1a" stroke-width="1.8"/>
+  <circle cx="580" cy="255" r="3.5" fill="#1a1a1a"/>
+  <text x="453" y="108" font-family="Arial,sans-serif" font-size="11" font-weight="700" fill="#1a1a1a">ENVIRONMENT</text>
+  <line x1="549" y1="206" x2="589" y2="184" stroke="#1a1a1a" stroke-width="1"/>
+  <circle cx="549" cy="206" r="2" fill="#555"/>
+  <text x="592" y="182" font-family="Arial,sans-serif" font-size="9" fill="#333">GitHub runner cold start</text>
+  <line x1="523" y1="164" x2="563" y2="142" stroke="#1a1a1a" stroke-width="1"/>
+  <circle cx="523" cy="164" r="2" fill="#555"/>
+  <text x="566" y="140" font-family="Arial,sans-serif" font-size="9" fill="#333">Docker Hub pull latency</text>
+
+  <!-- LOWER BONES -->
+
+  <!-- PEOPLE spine@(270,255) tip(182,395) -->
+  <line x1="270" y1="255" x2="182" y2="395" stroke="#1a1a1a" stroke-width="1.8"/>
+  <circle cx="270" cy="255" r="3.5" fill="#1a1a1a"/>
+  <text x="146" y="410" font-family="Arial,sans-serif" font-size="11" font-weight="700" fill="#1a1a1a">PEOPLE</text>
+  <line x1="239" y1="304" x2="279" y2="326" stroke="#1a1a1a" stroke-width="1"/>
+  <circle cx="239" cy="304" r="2" fill="#555"/>
+  <text x="282" y="332" font-family="Arial,sans-serif" font-size="9" fill="#333">Large infrequent commits</text>
+  <line x1="213" y1="346" x2="253" y2="368" stroke="#1a1a1a" stroke-width="1"/>
+  <circle cx="213" cy="346" r="2" fill="#555"/>
+  <text x="256" y="374" font-family="Arial,sans-serif" font-size="9" fill="#333">No branching strategy</text>
+
+  <!-- CODE spine@(468,255) tip(380,395) -->
+  <line x1="468" y1="255" x2="380" y2="395" stroke="#1a1a1a" stroke-width="1.8"/>
+  <circle cx="468" cy="255" r="3.5" fill="#1a1a1a"/>
+  <text x="354" y="410" font-family="Arial,sans-serif" font-size="11" font-weight="700" fill="#1a1a1a">CODE</text>
+  <line x1="437" y1="304" x2="477" y2="326" stroke="#1a1a1a" stroke-width="1"/>
+  <circle cx="437" cy="304" r="2" fill="#555"/>
+  <text x="480" y="332" font-family="Arial,sans-serif" font-size="9" fill="#333">Missing .dockerignore</text>
+  <line x1="411" y1="346" x2="451" y2="368" stroke="#1a1a1a" stroke-width="1"/>
+  <circle cx="411" cy="346" r="2" fill="#555"/>
+  <text x="454" y="374" font-family="Arial,sans-serif" font-size="9" fill="#333">Untuned health checks</text>
+
+  <!-- TESTING spine@(650,255) tip(562,395) -->
+  <line x1="650" y1="255" x2="562" y2="395" stroke="#1a1a1a" stroke-width="1.8"/>
+  <circle cx="650" cy="255" r="3.5" fill="#1a1a1a"/>
+  <text x="536" y="410" font-family="Arial,sans-serif" font-size="11" font-weight="700" fill="#1a1a1a">TESTING</text>
+  <line x1="619" y1="304" x2="659" y2="326" stroke="#1a1a1a" stroke-width="1"/>
+  <circle cx="619" cy="304" r="2" fill="#555"/>
+  <text x="662" y="332" font-family="Arial,sans-serif" font-size="9" fill="#333">30s MQTT wait timeout</text>
+  <line x1="593" y1="346" x2="633" y2="368" stroke="#1a1a1a" stroke-width="1"/>
+  <circle cx="593" cy="346" r="2" fill="#555"/>
+  <text x="636" y="374" font-family="Arial,sans-serif" font-size="9" fill="#333">No parallel test jobs</text>
+
+  <!-- Footer -->
+  <line x1="58" y1="462" x2="862" y2="462" stroke="#d8d8d8" stroke-width="1"/>
+  <text x="460" y="477" text-anchor="middle" font-family="Arial,sans-serif" font-size="9" fill="#888">Primary root cause (5 Whys): No Docker layer caching in GitHub Actions → cold build on every commit → 45–90s build time</text>
+</svg>
