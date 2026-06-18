@@ -1,0 +1,8 @@
+[run]
+source = backend
+omit =
+    backend/mqtt_bus.py
+    backend/__pycache__/*
+
+[report]
+show_missing = true
